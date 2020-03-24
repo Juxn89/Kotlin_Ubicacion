@@ -8,6 +8,9 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.tasks.OnSuccessListener
 
 class MainActivity : AppCompatActivity() {
@@ -19,11 +22,23 @@ class MainActivity : AppCompatActivity() {
 
     var fusedLocationClient:FusedLocationProviderClient? = null
 
+    var locationRequest:LocationRequest? = null
+
+    var callback:LocationCallback? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         fusedLocationClient = FusedLocationProviderClient(this)
+        inicializarLocationRequest()
+    }
+
+    private fun inicializarLocationRequest() {
+        locationRequest = LocationRequest()
+        locationRequest?.interval = 10000
+        locationRequest?.fastestInterval = 5000
+        locationRequest?.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
     }
 
     private fun validarPersimisosUbicacion():Boolean {
@@ -35,14 +50,27 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private fun obtenerUbicacion() {
-        fusedLocationClient?.lastLocation?.addOnSuccessListener(this, object: OnSuccessListener<Location>{
+        /*fusedLocationClient?.lastLocation?.addOnSuccessListener(this, object: OnSuccessListener<Location>{
             override fun onSuccess(p0: Location?) {
                 if (p0 != null){
                     Toast.makeText(applicationContext, "${p0?.latitude} - ${p0?.longitude}", Toast.LENGTH_SHORT).show()
                 }
+                else {
+                    Toast.makeText(applicationContext, "No hay última ubicación", Toast.LENGTH_SHORT).show()
+                }
             }
+        })*/
 
-        })
+        callback = object:LocationCallback(){
+            override fun onLocationResult(locationResult: LocationResult?) {
+                super.onLocationResult(locationResult)
+
+                for (ubicacion in locationResult?.locations!!) {
+                    Toast.makeText(applicationContext, "${ubicacion.latitude}, ${ubicacion.longitude}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        fusedLocationClient?.requestLocationUpdates(locationRequest, callback, null)
     }
 
     private  fun pedirPermisos() {
@@ -57,6 +85,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun solicitudPermiso() {
         requestPermissions(arrayOf(permisoFineLocation, permisoCoarseLocation), CODIGO_SOLICITUD_PERMISO)
+    }
+
+    private fun detenerActualizacionUbicacion() {
+        fusedLocationClient?.removeLocationUpdates(callback)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -82,5 +114,11 @@ class MainActivity : AppCompatActivity() {
         else {
             pedirPermisos()
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        detenerActualizacionUbicacion()
     }
 }
